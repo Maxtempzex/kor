@@ -306,6 +306,16 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
     onDragStart(groupedItem);
   };
 
+  // ИСПРАВЛЕННАЯ функция для проверки, нужно ли показывать кнопку провода
+  const shouldShowWireButton = (salaryGoods: string): boolean => {
+    const lowerSalaryGoods = salaryGoods.toLowerCase();
+    // Проверяем на различные варианты названий для материалов/товаров/проводов
+    return lowerSalaryGoods.includes('товар') || 
+           lowerSalaryGoods.includes('провод') || 
+           lowerSalaryGoods.includes('материал') ||
+           lowerSalaryGoods.includes('комплектующ');
+  };
+
   const canReceiveDrop = draggedItem !== null && draggedFromPositionId !== null;
   const hasSearchFilter = searchQuery.trim() !== '';
   const displayCount = hasSearchFilter ? items.length : totalUnallocatedCount || items.length;
@@ -483,17 +493,21 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                     </button>
                                   )}
 
-                                  {/* Кнопка добавления карточки провода (только для товаров) */}
-                                  {salaryGoodsGroup.salaryGoods.toLowerCase().includes('товар') && (
+                                  {/* ИСПРАВЛЕННАЯ кнопка добавления карточки провода */}
+                                  {shouldShowWireButton(salaryGoodsGroup.salaryGoods) && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        console.log('🔌 Нажата кнопка провода для группы:', salaryGoodsGroup.salaryGoods);
                                         // Берем первый элемент группы как шаблон
                                         const templateItem = items.find(item => 
                                           workTypeGroup.items[0].groupedIds.includes(item.id)
                                         );
                                         if (templateItem) {
+                                          console.log('🔌 Найден шаблон:', templateItem.id);
                                           handleAddWireItem(templateItem);
+                                        } else {
+                                          console.warn('🔌 Шаблон не найден');
                                         }
                                       }}
                                       className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
