@@ -56,22 +56,22 @@ export const ExportToSupabaseButton: React.FC<ExportToSupabaseButtonProps> = ({
         onClick={handleExport}
         disabled={disabled || isExporting || !hasPositions}
         className={`
-          flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
+          flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 text-sm
           ${disabled || isExporting || !hasPositions
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            : 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-md active:transform active:scale-95'
+            : 'bg-black text-white hover:bg-gray-800 hover:shadow-md active:transform active:scale-95'
           }
         `}
         title={!hasPositions ? 'Нет позиций для сохранения' : 'Сохранить позиции в Supabase'}
       >
         {isExporting ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-3 h-3 animate-spin" />
             <span>Сохранение...</span>
           </>
         ) : (
           <>
-            <Database className="w-4 h-4" />
+            <Database className="w-3 h-3" />
             <span>Сохранить в БД</span>
           </>
         )}

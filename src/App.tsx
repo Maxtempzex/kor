@@ -766,9 +766,9 @@ function App() {
               
               <button
                 onClick={createNewPosition}
-                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center space-x-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3" />
                 <span>Добавить позицию</span>
               </button>
               
@@ -780,9 +780,9 @@ function App() {
               <button
                 onClick={handleExport}
                 disabled={positions.length === 0}
-                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center space-x-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-3 h-3" />
                 <span>Скачать CSV</span>
               </button>
             </div>

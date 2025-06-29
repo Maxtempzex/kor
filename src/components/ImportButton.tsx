@@ -86,7 +86,7 @@ export const ImportButton: React.FC<ImportButtonProps> = ({ onImport, disabled =
         onClick={handleButtonClick}
         disabled={disabled || isLoading}
         className={`
-          flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
+          flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 text-sm
           ${disabled || isLoading
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
             : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-md active:transform active:scale-95'
@@ -95,12 +95,12 @@ export const ImportButton: React.FC<ImportButtonProps> = ({ onImport, disabled =
       >
         {isLoading ? (
           <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
             <span>Импорт...</span>
           </>
         ) : (
           <>
-            <Upload className="w-4 h-4" />
+            <Upload className="w-3 h-3" />
             <span>Импорт из Excel</span>
           </>
         )}
