@@ -133,5 +133,6 @@ export interface SavedPositionItem {
   income_expense_type: 'Доходы' | 'Расходы';
   work_type: string;
   salary_goods: string;
+  document?: string; // НОВОЕ поле для документа УПД
   created_at: string;
 }

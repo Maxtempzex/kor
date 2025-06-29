@@ -96,7 +96,18 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
           hasDate: !!item.date,
           hasAnalytics1: !!item.analytics1,
           hasAnalytics8: !!item.analytics8,
+          positionAnalytics1: position.analytics1,
           fullData: fullItemData
+        });
+
+        // НОВОЕ: Определяем документ УПД для элемента
+        // Приоритет: analytics1 позиции -> analytics1 элемента -> пустая строка
+        const documentUPD = position.analytics1 || item.analytics1 || '';
+
+        console.log(`📄 Документ УПД для элемента ${item.id}:`, {
+          fromPosition: position.analytics1,
+          fromItem: item.analytics1,
+          finalDocument: documentUPD
         });
 
         itemsToSave.push({
@@ -107,7 +118,8 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
           quantity: item.quantity,
           income_expense_type: item.incomeExpenseType,
           work_type: item.workType,
-          salary_goods: item.salaryGoods
+          salary_goods: item.salaryGoods,
+          document: documentUPD // НОВОЕ поле с документом УПД
         });
       });
     });
@@ -125,7 +137,8 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
       console.log(`💾 Сохраняем батч ${Math.floor(i/batchSize) + 1}:`, {
         batchSize: batch.length,
         startIndex: i,
-        endIndex: i + batch.length - 1
+        endIndex: i + batch.length - 1,
+        documentsInBatch: batch.map(item => ({ id: item.position_name, document: item.document }))
       });
 
       const { data: insertedItems, error: itemsError } = await supabase
@@ -143,11 +156,16 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
       console.log(`✅ Сохранен батч: ${batch.length} элементов (всего: ${savedItemsCount}/${itemsToSave.length})`);
       
       if (insertedItems && insertedItems.length > 0) {
-        console.log('✅ Пример сохраненного элемента:', insertedItems[0]);
+        console.log('✅ Пример сохраненного элемента:', {
+          id: insertedItems[0].id,
+          position_name: insertedItems[0].position_name,
+          document: insertedItems[0].document,
+          work_type: insertedItems[0].work_type
+        });
       }
     }
 
-    const message = `Успешно сохранено ${savedPositions.length} позиций с ${savedItemsCount} элементами`;
+    const message = `Успешно сохранено ${savedPositions.length} позиций с ${savedItemsCount} элементами (включая документы УПД)`;
     console.log('🎉 Экспорт завершен:', message);
 
     return {
