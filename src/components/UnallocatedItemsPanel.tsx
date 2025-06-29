@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RepairItem, GroupedRepairItem, Employee } from '../types';
+import { RepairItem, GroupedRepairItem, Employee, Wire } from '../types';
 import { GroupedRepairItemCard } from './GroupedRepairItemCard';
 import { EmployeeSelector } from './EmployeeSelector';
+import { WireSelector } from './WireSelector';
 import { groupByBasePositionName } from '../utils/groupingUtils';
 import { Package2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Minimize2, Maximize2, TrendingUp, TrendingDown, RussianRuble as Ruble, Plus } from 'lucide-react';
 
@@ -18,6 +19,7 @@ interface UnallocatedItemsPanelProps {
   onCreatePositionFromGroup?: (item: GroupedRepairItem) => void;
   onAddNewItem?: (templateItem: RepairItem, newName: string) => void;
   onAddEmployeeItem?: (templateItem: RepairItem, employee: Employee, hours: number) => void;
+  onAddWireItem?: (templateItem: RepairItem, wire: Wire, length: number) => void;
 }
 
 interface SalaryGoodsGroup {
@@ -44,7 +46,8 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   onIncreaseQuantity,
   onCreatePositionFromGroup,
   onAddNewItem,
-  onAddEmployeeItem
+  onAddEmployeeItem,
+  onAddWireItem
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -61,6 +64,10 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   // Состояние для выбора сотрудника
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(false);
   const [employeeTemplateItem, setEmployeeTemplateItem] = useState<RepairItem | null>(null);
+
+  // Состояние для выбора провода
+  const [showWireSelector, setShowWireSelector] = useState(false);
+  const [wireTemplateItem, setWireTemplateItem] = useState<RepairItem | null>(null);
 
   // Эффект для автоматического сворачивания всех групп при импорте данных
   useEffect(() => {
@@ -249,6 +256,27 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   const handleCancelEmployeeSelection = () => {
     setShowEmployeeSelector(false);
     setEmployeeTemplateItem(null);
+  };
+
+  // Функция для открытия выбора провода
+  const handleAddWireItem = (templateItem: RepairItem) => {
+    setWireTemplateItem(templateItem);
+    setShowWireSelector(true);
+  };
+
+  // Функция для создания карточки провода
+  const handleWireSelected = (wire: Wire, length: number) => {
+    if (!wireTemplateItem || !onAddWireItem) return;
+    
+    onAddWireItem(wireTemplateItem, wire, length);
+    setShowWireSelector(false);
+    setWireTemplateItem(null);
+  };
+
+  // Функция для отмены выбора провода
+  const handleCancelWireSelection = () => {
+    setShowWireSelector(false);
+    setWireTemplateItem(null);
   };
 
   // Функция для получения доходов и расходов из группы
@@ -450,6 +478,26 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                       }}
                                       className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
                                       title="Добавить сотрудника из справочника"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Кнопка добавления карточки провода (только для товаров) */}
+                                  {salaryGoodsGroup.salaryGoods.toLowerCase().includes('товар') && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Берем первый элемент группы как шаблон
+                                        const templateItem = items.find(item => 
+                                          workTypeGroup.items[0].groupedIds.includes(item.id)
+                                        );
+                                        if (templateItem) {
+                                          handleAddWireItem(templateItem);
+                                        }
+                                      }}
+                                      className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                      title="Добавить провод из справочника"
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
@@ -755,6 +803,16 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
           onCancel={handleCancelEmployeeSelection}
           templateWorkType={employeeTemplateItem.workType}
           templateSalaryGoods={employeeTemplateItem.salaryGoods}
+        />
+      )}
+
+      {/* Модальное окно выбора провода */}
+      {showWireSelector && wireTemplateItem && (
+        <WireSelector
+          onSelect={handleWireSelected}
+          onCancel={handleCancelWireSelection}
+          templateWorkType={wireTemplateItem.workType}
+          templateSalaryGoods={wireTemplateItem.salaryGoods}
         />
       )}
     </div>
