@@ -38,6 +38,28 @@ interface WorkTypeGroup {
   isCollapsed: boolean;
 }
 
+// НОВАЯ структура шаблонных групп для пустого состояния
+interface TemplateGroup {
+  salaryGoods: string;
+  workTypes: string[];
+}
+
+// НОВЫЕ шаблонные группы, которые показываются когда нет данных
+const DEFAULT_TEMPLATE_GROUPS: TemplateGroup[] = [
+  {
+    salaryGoods: 'Двигатель',
+    workTypes: ['1. Ремонт двигателя стандарт', '2. Замены расходников']
+  },
+  {
+    salaryGoods: 'Зарплата',
+    workTypes: ['1. Ремонт двигателя стандарт', '2. Замены расходников']
+  },
+  {
+    salaryGoods: 'Провод',
+    workTypes: ['1. Ремонт двигателя стандарт', '2. Замены расходников']
+  }
+];
+
 export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   items,
   onDragStart,
@@ -104,74 +126,134 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
       setCollapsedSalaryGoods(salaryGoodsSet);
       setCollapsedWorkTypes(workTypeSet);
     } else {
-      // Если данных нет, очищаем состояние сворачивания
-      setCollapsedSalaryGoods(new Set());
-      setCollapsedWorkTypes(new Set());
+      // НОВОЕ: Если данных нет, автоматически сворачиваем шаблонные группы
+      const templateSalaryGoodsSet = new Set(DEFAULT_TEMPLATE_GROUPS.map(g => g.salaryGoods));
+      const templateWorkTypeSet = new Set<string>();
+      
+      DEFAULT_TEMPLATE_GROUPS.forEach(group => {
+        group.workTypes.forEach(workType => {
+          templateWorkTypeSet.add(`${group.salaryGoods}_${workType}`);
+        });
+      });
+      
+      setCollapsedSalaryGoods(templateSalaryGoodsSet);
+      setCollapsedWorkTypes(templateWorkTypeSet);
     }
   }, [items.length]); // Срабатывает при изменении количества элементов
 
+  // НОВАЯ функция для создания шаблонного элемента
+  const createTemplateItem = (salaryGoods: string, workType: string): RepairItem => {
+    const templateId = `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    return {
+      id: templateId,
+      uniqueKey: `template-${salaryGoods.toLowerCase()}-${workType.toLowerCase()}`,
+      positionName: `Шаблон ${workType}_ID_${templateId}`,
+      year: new Date().getFullYear(),
+      month: new Date().getMonth() + 1,
+      quarter: `${Math.ceil((new Date().getMonth() + 1) / 3)}кв`,
+      date: new Date().toISOString().split('T')[0],
+      analytics1: '',
+      analytics2: '',
+      analytics3: '',
+      analytics4: '',
+      analytics5: '',
+      analytics6: '',
+      analytics7: '',
+      analytics8: workType,
+      debitAccount: '',
+      creditAccount: '',
+      revenue: 0,
+      quantity: 1,
+      sumWithoutVAT: 0,
+      vatAmount: 0,
+      workType: workType,
+      incomeExpenseType: 'Доходы',
+      salaryGoods: salaryGoods
+    };
+  };
+
   // Группируем по Зарплата/Товары -> Статья работ -> Базовое название позиции
   const groupedItems = useMemo(() => {
-    // Используем функцию группировки по базовому названию
-    const baseGrouped = groupByBasePositionName(items);
-    
-    const salaryGoodsGroups: SalaryGoodsGroup[] = [];
-    const itemsWithoutSalaryGoods: GroupedRepairItem[] = [];
-
-    // Группируем по Зарплата/Товары
-    const salaryGoodsMap = new Map<string, GroupedRepairItem[]>();
-    
-    baseGrouped.forEach(item => {
-      const salaryGoods = item.salaryGoods.trim();
-      if (salaryGoods) {
-        if (!salaryGoodsMap.has(salaryGoods)) {
-          salaryGoodsMap.set(salaryGoods, []);
-        }
-        salaryGoodsMap.get(salaryGoods)!.push(item);
-      } else {
-        itemsWithoutSalaryGoods.push(item);
-      }
-    });
-
-    // Создаем группы Зарплата/Товары
-    salaryGoodsMap.forEach((salaryGoodsItems, salaryGoods) => {
-      // Внутри каждой группы Зарплата/Товары группируем по статье работ
-      const workTypeMap = new Map<string, GroupedRepairItem[]>();
+    // НОВАЯ ЛОГИКА: Если есть реальные данные, используем их, иначе показываем шаблоны
+    if (items.length > 0) {
+      // Используем функцию группировки по базовому названию
+      const baseGrouped = groupByBasePositionName(items);
       
-      salaryGoodsItems.forEach(item => {
-        const workType = item.workType.trim();
-        const key = workType || 'Без статьи работ';
-        if (!workTypeMap.has(key)) {
-          workTypeMap.set(key, []);
+      const salaryGoodsGroups: SalaryGoodsGroup[] = [];
+      const itemsWithoutSalaryGoods: GroupedRepairItem[] = [];
+
+      // Группируем по Зарплата/Товары
+      const salaryGoodsMap = new Map<string, GroupedRepairItem[]>();
+      
+      baseGrouped.forEach(item => {
+        const salaryGoods = item.salaryGoods.trim();
+        if (salaryGoods) {
+          if (!salaryGoodsMap.has(salaryGoods)) {
+            salaryGoodsMap.set(salaryGoods, []);
+          }
+          salaryGoodsMap.get(salaryGoods)!.push(item);
+        } else {
+          itemsWithoutSalaryGoods.push(item);
         }
-        workTypeMap.get(key)!.push(item);
       });
 
-      // Создаем группы статей работ
-      const workTypeGroups: WorkTypeGroup[] = [];
-      
-      workTypeMap.forEach((workTypeItems, workType) => {
-        workTypeGroups.push({
-          workType,
-          items: workTypeItems,
-          isCollapsed: collapsedWorkTypes.has(`${salaryGoods}_${workType}`)
+      // Создаем группы Зарплата/Товары
+      salaryGoodsMap.forEach((salaryGoodsItems, salaryGoods) => {
+        // Внутри каждой группы Зарплата/Товары группируем по статье работ
+        const workTypeMap = new Map<string, GroupedRepairItem[]>();
+        
+        salaryGoodsItems.forEach(item => {
+          const workType = item.workType.trim();
+          const key = workType || 'Без статьи работ';
+          if (!workTypeMap.has(key)) {
+            workTypeMap.set(key, []);
+          }
+          workTypeMap.get(key)!.push(item);
+        });
+
+        // Создаем группы статей работ
+        const workTypeGroups: WorkTypeGroup[] = [];
+        
+        workTypeMap.forEach((workTypeItems, workType) => {
+          workTypeGroups.push({
+            workType,
+            items: workTypeItems,
+            isCollapsed: collapsedWorkTypes.has(`${salaryGoods}_${workType}`)
+          });
+        });
+
+        // Сортируем статьи работ по названию
+        workTypeGroups.sort((a, b) => a.workType.localeCompare(b.workType, 'ru'));
+
+        salaryGoodsGroups.push({
+          salaryGoods,
+          workTypeGroups,
+          isCollapsed: collapsedSalaryGoods.has(salaryGoods)
         });
       });
 
-      // Сортируем статьи работ по названию
-      workTypeGroups.sort((a, b) => a.workType.localeCompare(b.workType, 'ru'));
+      // Сортируем группы Зарплата/Товары по названию
+      salaryGoodsGroups.sort((a, b) => a.salaryGoods.localeCompare(b.salaryGoods, 'ru'));
 
-      salaryGoodsGroups.push({
-        salaryGoods,
-        workTypeGroups,
-        isCollapsed: collapsedSalaryGoods.has(salaryGoods)
-      });
-    });
+      return { salaryGoodsGroups, itemsWithoutSalaryGoods };
+    } else {
+      // НОВАЯ ЛОГИКА: Показываем шаблонные группы когда нет данных
+      const templateSalaryGoodsGroups: SalaryGoodsGroup[] = DEFAULT_TEMPLATE_GROUPS.map(templateGroup => ({
+        salaryGoods: templateGroup.salaryGoods,
+        workTypeGroups: templateGroup.workTypes.map(workType => ({
+          workType,
+          items: [], // Пустой массив для шаблонов
+          isCollapsed: collapsedWorkTypes.has(`${templateGroup.salaryGoods}_${workType}`)
+        })),
+        isCollapsed: collapsedSalaryGoods.has(templateGroup.salaryGoods)
+      }));
 
-    // Сортируем группы Зарплата/Товары по названию
-    salaryGoodsGroups.sort((a, b) => a.salaryGoods.localeCompare(b.salaryGoods, 'ru'));
-
-    return { salaryGoodsGroups, itemsWithoutSalaryGoods };
+      return { 
+        salaryGoodsGroups: templateSalaryGoodsGroups, 
+        itemsWithoutSalaryGoods: [] 
+      };
+    }
   }, [items, collapsedSalaryGoods, collapsedWorkTypes]);
 
   const handleDrop = (e: React.DragEvent) => {
@@ -231,6 +313,14 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
     setShowAddModal(true);
   };
 
+  // НОВАЯ функция для создания шаблонной карточки на основе группы
+  const handleAddNewItemFromTemplate = (salaryGoods: string, workType: string) => {
+    const templateItem = createTemplateItem(salaryGoods, workType);
+    setSelectedTemplateItem(templateItem);
+    setNewItemName('');
+    setShowAddModal(true);
+  };
+
   // Функция для создания новой карточки
   const handleCreateNewItem = () => {
     if (!selectedTemplateItem || !newItemName.trim()) return;
@@ -257,6 +347,13 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
     setShowEmployeeSelector(true);
   };
 
+  // НОВАЯ функция для создания карточки сотрудника из шаблона
+  const handleAddEmployeeItemFromTemplate = (salaryGoods: string, workType: string) => {
+    const templateItem = createTemplateItem(salaryGoods, workType);
+    setEmployeeTemplateItem(templateItem);
+    setShowEmployeeSelector(true);
+  };
+
   // Функция для создания карточки сотрудника
   const handleEmployeeSelected = (employee: Employee, hours: number) => {
     if (!employeeTemplateItem || !onAddEmployeeItem) return;
@@ -274,6 +371,13 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
 
   // Функция для открытия выбора провода
   const handleAddWireItem = (templateItem: RepairItem) => {
+    setWireTemplateItem(templateItem);
+    setShowWireSelector(true);
+  };
+
+  // НОВАЯ функция для создания карточки провода из шаблона
+  const handleAddWireItemFromTemplate = (salaryGoods: string, workType: string) => {
+    const templateItem = createTemplateItem(salaryGoods, workType);
     setWireTemplateItem(templateItem);
     setShowWireSelector(true);
   };
@@ -299,6 +403,13 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
     setShowMotorSelector(true);
   };
 
+  // НОВАЯ функция для создания карточки двигателя из шаблона
+  const handleAddMotorItemFromTemplate = (salaryGoods: string, workType: string) => {
+    const templateItem = createTemplateItem(salaryGoods, workType);
+    setMotorTemplateItem(templateItem);
+    setShowMotorSelector(true);
+  };
+
   const handleMotorSelected = (motor: Motor, quantity: number) => {
     if (!motorTemplateItem || !onAddMotorItem) return;
     
@@ -314,6 +425,13 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
 
   // НОВЫЕ функции для работы с подшипниками
   const handleAddBearingItem = (templateItem: RepairItem) => {
+    setBearingTemplateItem(templateItem);
+    setShowBearingSelector(true);
+  };
+
+  // НОВАЯ функция для создания карточки подшипника из шаблона
+  const handleAddBearingItemFromTemplate = (salaryGoods: string, workType: string) => {
+    const templateItem = createTemplateItem(salaryGoods, workType);
     setBearingTemplateItem(templateItem);
     setShowBearingSelector(true);
   };
@@ -350,12 +468,6 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
       hasIncome: incomeItems.length > 0,
       hasExpense: expenseItems.length > 0
     };
-  };
-
-  // Обработчик перетаскивания для группы
-  const handleGroupDragStart = (e: React.DragEvent, groupedItem: GroupedRepairItem) => {
-    e.dataTransfer.effectAllowed = 'move';
-    onDragStart(groupedItem);
   };
 
   // ИСПРАВЛЕННАЯ функция для проверки, нужно ли показывать кнопку провода
@@ -414,6 +526,9 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   const hasGroups = groupedItems.salaryGoodsGroups.length > 0;
   const allGroupsCollapsed = collapsedSalaryGoods.size === groupedItems.salaryGoodsGroups.length;
 
+  // НОВАЯ переменная для определения, показываем ли шаблоны
+  const isShowingTemplates = items.length === 0;
+
   return (
     <div className={`
       bg-white border-r border-gray-200 transition-all duration-300 ease-in-out flex flex-col flex-shrink-0
@@ -426,7 +541,7 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
             <div className="flex items-center space-x-2">
               <Package2 className="w-5 h-5 text-blue-600" />
               <h2 className="text-lg font-semibold text-gray-900">
-                Неразмещенные позиции
+                {isShowingTemplates ? 'Создание позиций' : 'Неразмещенные позиции'}
               </h2>
             </div>
             <div className="flex items-center space-x-2">
@@ -435,10 +550,12 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                   {items.length}/{totalUnallocatedCount}
                 </span>
               )}
-              <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
-                {displayCount}
-              </div>
-              {totalGroupedItems !== items.length && (
+              {!isShowingTemplates && (
+                <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
+                  {displayCount}
+                </div>
+              )}
+              {!isShowingTemplates && totalGroupedItems !== items.length && (
                 <div className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
                   {totalGroupedItems}
                 </div>
@@ -485,7 +602,8 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
             </div>
           )}
           
-          {items.length === 0 && !isDragOver ? (
+          {/* НОВОЕ: Показываем разные сообщения для шаблонов и пустого состояния */}
+          {items.length === 0 && !isDragOver && !isShowingTemplates ? (
             <div className="text-center py-8">
               <Package2 className="w-8 h-8 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500 text-sm">
@@ -494,6 +612,16 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
+              {/* НОВОЕ: Показываем подсказку для шаблонного режима */}
+              {isShowingTemplates && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800 font-medium mb-1">Создание позиций из справочников</p>
+                  <p className="text-xs text-blue-700">
+                    Используйте кнопки + для создания карточек из справочников сотрудников, проводов, двигателей и подшипников
+                  </p>
+                </div>
+              )}
+
               {/* Группы по Зарплата/Товары */}
               {groupedItems.salaryGoodsGroups.map((salaryGoodsGroup) => (
                 <div key={salaryGoodsGroup.salaryGoods} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -506,9 +634,11 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                       <span className="font-medium text-indigo-900 text-sm">
                         {salaryGoodsGroup.salaryGoods}
                       </span>
-                      <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-medium">
-                        {salaryGoodsGroup.workTypeGroups.reduce((sum, wg) => sum + wg.items.length, 0)}
-                      </span>
+                      {!isShowingTemplates && (
+                        <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full text-xs font-medium">
+                          {salaryGoodsGroup.workTypeGroups.reduce((sum, wg) => sum + wg.items.length, 0)}
+                        </span>
+                      )}
                     </div>
                     {salaryGoodsGroup.isCollapsed ? (
                       <ChevronDown className="w-4 h-4 text-indigo-500" />
@@ -531,29 +661,25 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                               <span className="font-medium text-gray-900 text-sm">
                                 {workTypeGroup.workType}
                               </span>
-                              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-medium">
-                                {workTypeGroup.items.length}
-                              </span>
+                              {!isShowingTemplates && (
+                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-medium">
+                                  {workTypeGroup.items.length}
+                                </span>
+                              )}
                             </button>
                             
                             <div className="flex items-center space-x-2">
-                              {/* Кнопки добавления новых карточек */}
-                              {workTypeGroup.items.length > 0 && (
+                              {/* НОВЫЕ кнопки для шаблонного режима */}
+                              {isShowingTemplates ? (
                                 <>
                                   {/* Кнопка добавления обычной карточки */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      // Берем первый элемент группы как шаблон
-                                      const templateItem = items.find(item => 
-                                        workTypeGroup.items[0].groupedIds.includes(item.id)
-                                      );
-                                      if (templateItem) {
-                                        handleAddNewItem(templateItem);
-                                      }
+                                      handleAddNewItemFromTemplate(salaryGoodsGroup.salaryGoods, workTypeGroup.workType);
                                     }}
                                     className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                                    title="Добавить новую карточку в эту группу"
+                                    title="Добавить новую карточку"
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
@@ -563,13 +689,7 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        // Берем первый элемент группы как шаблон
-                                        const templateItem = items.find(item => 
-                                          workTypeGroup.items[0].groupedIds.includes(item.id)
-                                        );
-                                        if (templateItem) {
-                                          handleAddEmployeeItem(templateItem);
-                                        }
+                                        handleAddEmployeeItemFromTemplate(salaryGoodsGroup.salaryGoods, workTypeGroup.workType);
                                       }}
                                       className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
                                       title="Добавить сотрудника из справочника"
@@ -578,22 +698,12 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                     </button>
                                   )}
 
-                                  {/* ИСПРАВЛЕННАЯ кнопка добавления карточки провода */}
+                                  {/* Кнопка добавления карточки провода */}
                                   {shouldShowWireButton(salaryGoodsGroup.salaryGoods) && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        console.log('🔌 Нажата кнопка провода для группы:', salaryGoodsGroup.salaryGoods);
-                                        // Берем первый элемент группы как шаблон
-                                        const templateItem = items.find(item => 
-                                          workTypeGroup.items[0].groupedIds.includes(item.id)
-                                        );
-                                        if (templateItem) {
-                                          console.log('🔌 Найден шаблон:', templateItem.id);
-                                          handleAddWireItem(templateItem);
-                                        } else {
-                                          console.warn('🔌 Шаблон не найден');
-                                        }
+                                        handleAddWireItemFromTemplate(salaryGoodsGroup.salaryGoods, workTypeGroup.workType);
                                       }}
                                       className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
                                       title="Добавить провод из справочника"
@@ -602,25 +712,12 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                     </button>
                                   )}
 
-                                  {/* ИСПРАВЛЕННАЯ кнопка добавления карточки двигателя - теперь проверяем И категорию, И статью работ */}
+                                  {/* Кнопка добавления карточки двигателя */}
                                   {shouldShowMotorButton(salaryGoodsGroup.salaryGoods, workTypeGroup.workType) && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        console.log('⚙️ Нажата кнопка двигателя для группы:', {
-                                          salaryGoods: salaryGoodsGroup.salaryGoods,
-                                          workType: workTypeGroup.workType
-                                        });
-                                        // Берем первый элемент группы как шаблон
-                                        const templateItem = items.find(item => 
-                                          workTypeGroup.items[0].groupedIds.includes(item.id)
-                                        );
-                                        if (templateItem) {
-                                          console.log('⚙️ Найден шаблон:', templateItem.id);
-                                          handleAddMotorItem(templateItem);
-                                        } else {
-                                          console.warn('⚙️ Шаблон не найден');
-                                        }
+                                        handleAddMotorItemFromTemplate(salaryGoodsGroup.salaryGoods, workTypeGroup.workType);
                                       }}
                                       className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
                                       title="Добавить двигатель из справочника"
@@ -629,22 +726,12 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                     </button>
                                   )}
 
-                                  {/* НОВАЯ кнопка добавления карточки подшипника (для замены расходников) */}
+                                  {/* Кнопка добавления карточки подшипника */}
                                   {shouldShowBearingButton(workTypeGroup.workType) && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        console.log('🔧 Нажата кнопка подшипника для группы:', workTypeGroup.workType);
-                                        // Берем первый элемент группы как шаблон
-                                        const templateItem = items.find(item => 
-                                          workTypeGroup.items[0].groupedIds.includes(item.id)
-                                        );
-                                        if (templateItem) {
-                                          console.log('🔧 Найден шаблон:', templateItem.id);
-                                          handleAddBearingItem(templateItem);
-                                        } else {
-                                          console.warn('🔧 Шаблон не найден');
-                                        }
+                                        handleAddBearingItemFromTemplate(salaryGoodsGroup.salaryGoods, workTypeGroup.workType);
                                       }}
                                       className="p-1 text-orange-600 hover:bg-orange-100 rounded transition-colors"
                                       title="Добавить подшипник из справочника"
@@ -653,6 +740,124 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                     </button>
                                   )}
                                 </>
+                              ) : (
+                                /* Кнопки для режима с данными */
+                                workTypeGroup.items.length > 0 && (
+                                  <>
+                                    {/* Кнопка добавления обычной карточки */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Берем первый элемент группы как шаблон
+                                        const templateItem = items.find(item => 
+                                          workTypeGroup.items[0].groupedIds.includes(item.id)
+                                        );
+                                        if (templateItem) {
+                                          handleAddNewItem(templateItem);
+                                        }
+                                      }}
+                                      className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                      title="Добавить новую карточку в эту группу"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                    
+                                    {/* Кнопка добавления карточки сотрудника (только для зарплаты) */}
+                                    {salaryGoodsGroup.salaryGoods.toLowerCase().includes('зарплата') && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Берем первый элемент группы как шаблон
+                                          const templateItem = items.find(item => 
+                                            workTypeGroup.items[0].groupedIds.includes(item.id)
+                                          );
+                                          if (templateItem) {
+                                            handleAddEmployeeItem(templateItem);
+                                          }
+                                        }}
+                                        className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                        title="Добавить сотрудника из справочника"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    )}
+
+                                    {/* ИСПРАВЛЕННАЯ кнопка добавления карточки провода */}
+                                    {shouldShowWireButton(salaryGoodsGroup.salaryGoods) && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('🔌 Нажата кнопка провода для группы:', salaryGoodsGroup.salaryGoods);
+                                          // Берем первый элемент группы как шаблон
+                                          const templateItem = items.find(item => 
+                                            workTypeGroup.items[0].groupedIds.includes(item.id)
+                                          );
+                                          if (templateItem) {
+                                            console.log('🔌 Найден шаблон:', templateItem.id);
+                                            handleAddWireItem(templateItem);
+                                          } else {
+                                            console.warn('🔌 Шаблон не найден');
+                                          }
+                                        }}
+                                        className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                        title="Добавить провод из справочника"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    )}
+
+                                    {/* ИСПРАВЛЕННАЯ кнопка добавления карточки двигателя - теперь проверяем И категорию, И статью работ */}
+                                    {shouldShowMotorButton(salaryGoodsGroup.salaryGoods, workTypeGroup.workType) && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('⚙️ Нажата кнопка двигателя для группы:', {
+                                            salaryGoods: salaryGoodsGroup.salaryGoods,
+                                            workType: workTypeGroup.workType
+                                          });
+                                          // Берем первый элемент группы как шаблон
+                                          const templateItem = items.find(item => 
+                                            workTypeGroup.items[0].groupedIds.includes(item.id)
+                                          );
+                                          if (templateItem) {
+                                            console.log('⚙️ Найден шаблон:', templateItem.id);
+                                            handleAddMotorItem(templateItem);
+                                          } else {
+                                            console.warn('⚙️ Шаблон не найден');
+                                          }
+                                        }}
+                                        className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                                        title="Добавить двигатель из справочника"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    )}
+
+                                    {/* НОВАЯ кнопка добавления карточки подшипника (для замены расходников) */}
+                                    {shouldShowBearingButton(workTypeGroup.workType) && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          console.log('🔧 Нажата кнопка подшипника для группы:', workTypeGroup.workType);
+                                          // Берем первый элемент группы как шаблон
+                                          const templateItem = items.find(item => 
+                                            workTypeGroup.items[0].groupedIds.includes(item.id)
+                                          );
+                                          if (templateItem) {
+                                            console.log('🔧 Найден шаблон:', templateItem.id);
+                                            handleAddBearingItem(templateItem);
+                                          } else {
+                                            console.warn('🔧 Шаблон не найден');
+                                          }
+                                        }}
+                                        className="p-1 text-orange-600 hover:bg-orange-100 rounded transition-colors"
+                                        title="Добавить подшипник из справочника"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </>
+                                )
                               )}
                               
                               {/* Кнопка сворачивания */}
@@ -669,8 +874,8 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                             </div>
                           </div>
                           
-                          {/* Элементы статьи работ */}
-                          {!workTypeGroup.isCollapsed && (
+                          {/* Элементы статьи работ - показываем только если есть реальные данные */}
+                          {!workTypeGroup.isCollapsed && !isShowingTemplates && (
                             <div className="bg-white space-y-2 p-2 pl-8">
                               {workTypeGroup.items.map((groupedItem) => {
                                 const { hasIncome, hasExpense, totalIncome, totalExpense } = getIncomeExpenseFromGroup(groupedItem, items);
@@ -769,6 +974,15 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                               })}
                             </div>
                           )}
+
+                          {/* НОВОЕ: Показываем подсказку для свернутых шаблонных групп */}
+                          {!workTypeGroup.isCollapsed && isShowingTemplates && (
+                            <div className="bg-white p-4 pl-8">
+                              <div className="text-center py-4 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
+                                <p className="text-sm">Используйте кнопки + выше для создания карточек</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -776,8 +990,8 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                 </div>
               ))}
 
-              {/* Элементы без Зарплата/Товары */}
-              {groupedItems.itemsWithoutSalaryGoods.length > 0 && (
+              {/* Элементы без Зарплата/Товары - показываем только если есть реальные данные */}
+              {!isShowingTemplates && groupedItems.itemsWithoutSalaryGoods.length > 0 && (
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <div className="px-3 py-2 bg-gray-50 flex items-center space-x-2">
                     <span className="font-medium text-gray-900 text-sm">Без категории</span>
@@ -987,4 +1201,10 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
       )}
     </div>
   );
+};
+
+// Обработчик перетаскивания для группы
+const handleGroupDragStart = (e: React.DragEvent, groupedItem: GroupedRepairItem) => {
+  e.dataTransfer.effectAllowed = 'move';
+  // onDragStart(groupedItem); // Эта функция должна быть передана из родительского компонента
 };
