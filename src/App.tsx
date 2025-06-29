@@ -41,7 +41,8 @@ function App() {
       items: [],
       totalPrice: 0,
       totalIncome: 0,
-      totalExpense: 0
+      totalExpense: 0,
+      analytics1: '' // НОВОЕ поле для документа УПД
     };
     
     setPositions([...positions, newPosition]);
@@ -87,11 +88,15 @@ function App() {
 
     const totals = recalculatePositionTotals(allRelatedItems);
     
+    // НОВОЕ: Извлекаем analytics1 из первого элемента для позиции
+    const firstItemAnalytics1 = allRelatedItems[0]?.analytics1 || '';
+    
     const newPosition: Position = {
       id: `position-${Date.now()}`,
       service: basePositionName, // Используем базовое название без ID
       positionNumber: nextPositionNumber,
       items: allRelatedItems, // Включаем ВСЕ связанные элементы
+      analytics1: firstItemAnalytics1, // НОВОЕ: Устанавливаем документ УПД для позиции
       ...totals
     };
 
@@ -131,6 +136,7 @@ function App() {
         service: item.positionName, // Используем полное название позиции с ID
         positionNumber: currentPositionNumber,
         items: [item], // Только один элемент в позиции
+        analytics1: item.analytics1, // НОВОЕ: Устанавливаем документ УПД
         ...totals
       };
 
@@ -315,6 +321,15 @@ function App() {
     setPositions(positions.map(position => 
       position.id === positionId 
         ? { ...position, service: newService }
+        : position
+    ));
+  };
+
+  // НОВАЯ функция для обновления analytics1 позиции
+  const updatePositionAnalytics1 = (positionId: string, newAnalytics1: string) => {
+    setPositions(positions.map(position => 
+      position.id === positionId 
+        ? { ...position, analytics1: newAnalytics1 }
         : position
     ));
   };
@@ -891,6 +906,7 @@ function App() {
                     onDrop={handlePositionDrop}
                     onDragOver={(e) => e.preventDefault()}
                     onUpdateService={updatePositionService}
+                    onUpdateAnalytics1={updatePositionAnalytics1}
                     onDeletePosition={deletePosition}
                     draggedItem={draggedItem}
                     onQuantityChange={handleQuantityChange}

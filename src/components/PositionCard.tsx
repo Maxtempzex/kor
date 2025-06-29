@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Position, RepairItem, GroupedRepairItem } from '../types';
 import { GroupedRepairItemCard } from './GroupedRepairItemCard';
 import { groupSimilarItems, getBasePositionName } from '../utils/groupingUtils';
-import { Settings, Trash2, RussianRuble as Ruble, Edit3, Check, X, ChevronDown, ChevronUp, Minimize2, Maximize2, TrendingUp, TrendingDown } from 'lucide-react';
+import { Settings, Trash2, RussianRuble as Ruble, Edit3, Check, X, ChevronDown, ChevronUp, Minimize2, Maximize2, TrendingUp, TrendingDown, FileText } from 'lucide-react';
 
 interface PositionCardProps {
   position: Position;
@@ -10,6 +10,7 @@ interface PositionCardProps {
   onDrop: (targetPositionId: string) => void;
   onDragOver: (e: React.DragEvent) => void;
   onUpdateService: (positionId: string, newService: string) => void;
+  onUpdateAnalytics1: (positionId: string, newAnalytics1: string) => void; // НОВЫЙ пропс
   onDeletePosition: (positionId: string) => void;
   draggedItem: GroupedRepairItem | null;
   onQuantityChange: (positionId: string, groupedItem: GroupedRepairItem, newQuantity: number) => void;
@@ -36,6 +37,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
   onDrop,
   onDragOver,
   onUpdateService,
+  onUpdateAnalytics1, // НОВЫЙ пропс
   onDeletePosition,
   draggedItem,
   onQuantityChange,
@@ -46,6 +48,10 @@ const PositionCard: React.FC<PositionCardProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(position.service);
   const [isDragOver, setIsDragOver] = useState(false);
+  
+  // НОВОЕ состояние для редактирования analytics1
+  const [isEditingAnalytics1, setIsEditingAnalytics1] = useState(false);
+  const [editAnalytics1Value, setEditAnalytics1Value] = useState(position.analytics1 || '');
   
   // Статьи работ и позиции развернуты по умолчанию
   const [collapsedWorkTypes, setCollapsedWorkTypes] = useState<Set<string>>(new Set());
@@ -72,11 +78,17 @@ const PositionCard: React.FC<PositionCardProps> = ({
   const [expandedIncomeExpense, setExpandedIncomeExpense] = useState<Set<string>>(new Set());
   
   const inputRef = useRef<HTMLInputElement>(null);
+  const analytics1InputRef = useRef<HTMLInputElement>(null); // НОВЫЙ реф
 
   // Update editValue when position.service changes
   useEffect(() => {
     setEditValue(position.service);
   }, [position.service]);
+
+  // НОВЫЙ эффект для обновления analytics1
+  useEffect(() => {
+    setEditAnalytics1Value(position.analytics1 || '');
+  }, [position.analytics1]);
 
   // Focus and select text when editing starts
   useEffect(() => {
@@ -85,6 +97,14 @@ const PositionCard: React.FC<PositionCardProps> = ({
       inputRef.current.select();
     }
   }, [isEditing]);
+
+  // НОВЫЙ эффект для фокуса на analytics1
+  useEffect(() => {
+    if (isEditingAnalytics1 && analytics1InputRef.current) {
+      analytics1InputRef.current.focus();
+      analytics1InputRef.current.select();
+    }
+  }, [isEditingAnalytics1]);
 
   // ИСПРАВЛЕНИЕ: Эффект для автоматического сворачивания позиций при добавлении новых элементов
   useEffect(() => {
@@ -141,8 +161,24 @@ const PositionCard: React.FC<PositionCardProps> = ({
     setIsEditing(false);
   };
 
+  // НОВЫЕ функции для редактирования analytics1
+  const handleSaveAnalytics1Edit = () => {
+    onUpdateAnalytics1(position.id, editAnalytics1Value.trim());
+    setIsEditingAnalytics1(false);
+  };
+
+  const handleCancelAnalytics1Edit = () => {
+    setEditAnalytics1Value(position.analytics1 || '');
+    setIsEditingAnalytics1(false);
+  };
+
   const handleDoubleClick = () => {
     setIsEditing(true);
+  };
+
+  // НОВАЯ функция для двойного клика по analytics1
+  const handleAnalytics1DoubleClick = () => {
+    setIsEditingAnalytics1(true);
   };
 
   const handleQuantityChange = (groupedItem: GroupedRepairItem, newQuantity: number) => {
@@ -234,6 +270,21 @@ const PositionCard: React.FC<PositionCardProps> = ({
     const key = `${workType}_${positionName}_${incomeExpenseType}`;
     // ИНВЕРТИРОВАННАЯ ЛОГИКА: если ключа НЕТ в expandedIncomeExpense, значит секция СВЕРНУТА
     return !expandedIncomeExpense.has(key);
+  };
+
+  // НОВАЯ функция для форматирования документа УПД
+  const formatUPDDocument = (analytics1: string) => {
+    if (!analytics1 || analytics1.trim() === '') return null;
+    
+    // Пытаемся извлечь номер документа и дату
+    const match = analytics1.match(/(\w+-\d+)\s+от\s+(\d{2}\.\d{2}\.\d{4})/);
+    if (match) {
+      const [, docNumber, docDate] = match;
+      return { docNumber, docDate, fullText: analytics1 };
+    }
+    
+    // Если не удалось распарсить, возвращаем как есть
+    return { docNumber: null, docDate: null, fullText: analytics1 };
   };
 
   // ПРАВИЛЬНАЯ ИЕРАРХИЯ: Сначала по статье работ, потом по названию позиции
@@ -333,6 +384,9 @@ const PositionCard: React.FC<PositionCardProps> = ({
   const canReceiveDrop = draggedItem !== null;
   const hasGroups = groupedItemsByWorkType.workTypes.length > 0;
   const allGroupsCollapsed = collapsedWorkTypes.size === groupedItemsByWorkType.workTypes.length;
+
+  // НОВОЕ: Получаем информацию о документе УПД
+  const updDocument = formatUPDDocument(position.analytics1 || '');
 
   return (
     <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-6 transition-all duration-200">
@@ -440,6 +494,91 @@ const PositionCard: React.FC<PositionCardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* НОВОЕ: Блок с документом УПД */}
+      {(updDocument?.fullText || isEditingAnalytics1) && (
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-start space-x-2">
+            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs font-medium text-blue-800 mb-1">Документ УПД:</p>
+              {isEditingAnalytics1 ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    ref={analytics1InputRef}
+                    type="text"
+                    value={editAnalytics1Value}
+                    onChange={(e) => setEditAnalytics1Value(e.target.value)}
+                    className="text-sm text-blue-700 bg-white border border-blue-300 rounded px-2 py-1 flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveAnalytics1Edit();
+                      if (e.key === 'Escape') handleCancelAnalytics1Edit();
+                    }}
+                    onBlur={handleSaveAnalytics1Edit}
+                    placeholder="Введите документ УПД..."
+                  />
+                  <button
+                    onClick={handleSaveAnalytics1Edit}
+                    className="p-1 text-green-600 hover:bg-green-50 rounded"
+                  >
+                    <Check className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={handleCancelAnalytics1Edit}
+                    className="p-1 text-red-600 hover:bg-red-50 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div 
+                  className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded transition-colors"
+                  onDoubleClick={handleAnalytics1DoubleClick}
+                  title="Дважды кликните для редактирования"
+                >
+                  {updDocument?.docNumber && updDocument?.docDate ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2 text-sm">
+                        <span className="font-medium text-blue-700">№ {updDocument.docNumber}</span>
+                        <span className="text-blue-600">от {updDocument.docDate}</span>
+                      </div>
+                      <p className="text-xs text-blue-600 break-all">
+                        {updDocument.fullText}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-blue-600 break-all">
+                      {updDocument?.fullText || 'Нажмите для добавления документа УПД'}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            {!isEditingAnalytics1 && (
+              <button
+                onClick={() => setIsEditingAnalytics1(true)}
+                className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                title="Редактировать документ УПД"
+              >
+                <Edit3 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Кнопка добавления документа УПД, если его нет */}
+      {!updDocument?.fullText && !isEditingAnalytics1 && (
+        <div className="mb-4">
+          <button
+            onClick={() => setIsEditingAnalytics1(true)}
+            className="w-full flex items-center justify-center space-x-2 p-3 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="text-sm">Добавить документ УПД</span>
+          </button>
+        </div>
+      )}
 
       <div
         onDrop={handleDrop}

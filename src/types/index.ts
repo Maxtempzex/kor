@@ -41,6 +41,7 @@ export interface Position {
   totalPrice: number;
   totalIncome: number; // Общая сумма доходов
   totalExpense: number; // Общая сумма расходов
+  analytics1?: string; // НОВОЕ поле для документа УПД на уровне позиции
 }
 
 export interface DragItem {
