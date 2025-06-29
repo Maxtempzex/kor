@@ -368,14 +368,27 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
            lowerSalaryGoods.includes('комплектующ');
   };
 
-  // НОВАЯ функция для проверки, нужно ли показывать кнопку двигателя
-  const shouldShowMotorButton = (salaryGoods: string): boolean => {
+  // ИСПРАВЛЕННАЯ функция для проверки, нужно ли показывать кнопку двигателя
+  // Теперь проверяем И категорию (salaryGoods), И статью работ (workType)
+  const shouldShowMotorButton = (salaryGoods: string, workType: string): boolean => {
     const lowerSalaryGoods = salaryGoods.toLowerCase();
-    // Проверяем на различные варианты названий для двигателей
-    return lowerSalaryGoods.includes('двигатель') || 
-           lowerSalaryGoods.includes('мотор') || 
-           lowerSalaryGoods.includes('электродвигатель') ||
-           lowerSalaryGoods.includes('движок');
+    const lowerWorkType = workType.toLowerCase();
+    
+    // Показываем кнопку двигателя ТОЛЬКО если:
+    // 1. Категория содержит "двигатель" ИЛИ
+    // 2. Статья работ содержит "ремонт двигателя" или "стандарт" (но НЕ "замен")
+    const isDvigatelCategory = lowerSalaryGoods.includes('двигатель') || 
+                               lowerSalaryGoods.includes('мотор') || 
+                               lowerSalaryGoods.includes('электродвигатель');
+    
+    const isMotorRepairWork = lowerWorkType.includes('ремонт') && 
+                              lowerWorkType.includes('двигател') &&
+                              !lowerWorkType.includes('замен'); // ИСКЛЮЧАЕМ "замены"
+    
+    const isStandardWork = lowerWorkType.includes('стандарт') &&
+                           !lowerWorkType.includes('замен'); // ИСКЛЮЧАЕМ "замены"
+    
+    return isDvigatelCategory && (isMotorRepairWork || isStandardWork);
   };
 
   // НОВАЯ функция для проверки, нужно ли показывать кнопку подшипника
@@ -589,12 +602,15 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                     </button>
                                   )}
 
-                                  {/* НОВАЯ кнопка добавления карточки двигателя */}
-                                  {shouldShowMotorButton(salaryGoodsGroup.salaryGoods) && (
+                                  {/* ИСПРАВЛЕННАЯ кнопка добавления карточки двигателя - теперь проверяем И категорию, И статью работ */}
+                                  {shouldShowMotorButton(salaryGoodsGroup.salaryGoods, workTypeGroup.workType) && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        console.log('⚙️ Нажата кнопка двигателя для группы:', salaryGoodsGroup.salaryGoods);
+                                        console.log('⚙️ Нажата кнопка двигателя для группы:', {
+                                          salaryGoods: salaryGoodsGroup.salaryGoods,
+                                          workType: workTypeGroup.workType
+                                        });
                                         // Берем первый элемент группы как шаблон
                                         const templateItem = items.find(item => 
                                           workTypeGroup.items[0].groupedIds.includes(item.id)
