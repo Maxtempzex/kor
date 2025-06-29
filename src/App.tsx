@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RepairItem, Position, GroupedRepairItem, Employee, Wire, Motor } from './types';
+import { RepairItem, Position, GroupedRepairItem, Employee, Wire, Motor, Bearing } from './types';
 import { UnallocatedItemsPanel } from './components/UnallocatedItemsPanel';
 import PositionCard from './components/PositionCard';
 import { ImportButton } from './components/ImportButton';
@@ -511,6 +511,46 @@ function App() {
     setUnallocatedItems(prevItems => [...prevItems, newItem]);
   };
 
+  // НОВАЯ функция для добавления карточки подшипника из справочника
+  const handleAddBearingItem = (templateItem: RepairItem, bearing: Bearing, quantity: number) => {
+    // Генерируем новый ID
+    const newId = `bearing-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Рассчитываем сумму
+    const totalAmount = bearing.price_per_unit * quantity;
+    const sumWithoutVAT = totalAmount * 0.8; // 80% без НДС
+    const vatAmount = totalAmount * 0.2; // 20% НДС
+    
+    // Создаем новую карточку подшипника
+    const newItem: RepairItem = {
+      ...templateItem, // Копируем все свойства шаблона
+      id: newId,
+      uniqueKey: `${newId}-${bearing.designation.toLowerCase().replace(/\s+/g, '-')}-${quantity}pcs`,
+      positionName: `Замена подшипника ${bearing.designation} (${quantity} шт)_ID_${newId}`,
+      analytics8: `Замена подшипника ${bearing.designation} (${quantity} шт)`,
+      // Устанавливаем финансовые данные
+      revenue: totalAmount, // Положительная сумма для расходов на материалы
+      sumWithoutVAT: sumWithoutVAT,
+      vatAmount: vatAmount,
+      quantity: quantity,
+      incomeExpenseType: 'Расходы' // Подшипники - это расходы на материалы
+    };
+
+    console.log('⚙️ Создание карточки подшипника:', {
+      templateId: templateItem.id,
+      newId: newItem.id,
+      bearingDesignation: bearing.designation,
+      quantity,
+      pricePerUnit: bearing.price_per_unit,
+      totalAmount,
+      workType: newItem.workType,
+      salaryGoods: newItem.salaryGoods
+    });
+
+    // Добавляем новую карточку в неразмещенные
+    setUnallocatedItems(prevItems => [...prevItems, newItem]);
+  };
+
   // Обработка изменения количества в позиции
   const handleQuantityChange = (positionId: string, groupedItem: GroupedRepairItem, newQuantity: number) => {
     const currentQuantity = groupedItem.groupedIds.length;
@@ -781,6 +821,7 @@ function App() {
           onAddEmployeeItem={handleAddEmployeeItem}
           onAddWireItem={handleAddWireItem}
           onAddMotorItem={handleAddMotorItem}
+          onAddBearingItem={handleAddBearingItem}
         />
 
         {/* Right Content Area - Independent scroll */}

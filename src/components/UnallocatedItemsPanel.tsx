@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RepairItem, GroupedRepairItem, Employee, Wire, Motor } from '../types';
+import { RepairItem, GroupedRepairItem, Employee, Wire, Motor, Bearing } from '../types';
 import { GroupedRepairItemCard } from './GroupedRepairItemCard';
 import { EmployeeSelector } from './EmployeeSelector';
 import { WireSelector } from './WireSelector';
 import { MotorSelector } from './MotorSelector';
+import { BearingSelector } from './BearingSelector';
 import { groupByBasePositionName } from '../utils/groupingUtils';
 import { Package2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Minimize2, Maximize2, TrendingUp, TrendingDown, RussianRuble as Ruble, Plus } from 'lucide-react';
 
@@ -22,6 +23,7 @@ interface UnallocatedItemsPanelProps {
   onAddEmployeeItem?: (templateItem: RepairItem, employee: Employee, hours: number) => void;
   onAddWireItem?: (templateItem: RepairItem, wire: Wire, length: number) => void;
   onAddMotorItem?: (templateItem: RepairItem, motor: Motor, quantity: number) => void;
+  onAddBearingItem?: (templateItem: RepairItem, bearing: Bearing, quantity: number) => void;
 }
 
 interface SalaryGoodsGroup {
@@ -50,7 +52,8 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   onAddNewItem,
   onAddEmployeeItem,
   onAddWireItem,
-  onAddMotorItem
+  onAddMotorItem,
+  onAddBearingItem
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -75,6 +78,10 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   // НОВОЕ состояние для выбора двигателя
   const [showMotorSelector, setShowMotorSelector] = useState(false);
   const [motorTemplateItem, setMotorTemplateItem] = useState<RepairItem | null>(null);
+
+  // НОВОЕ состояние для выбора подшипника
+  const [showBearingSelector, setShowBearingSelector] = useState(false);
+  const [bearingTemplateItem, setBearingTemplateItem] = useState<RepairItem | null>(null);
 
   // Эффект для автоматического сворачивания всех групп при импорте данных
   useEffect(() => {
@@ -305,6 +312,25 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
     setMotorTemplateItem(null);
   };
 
+  // НОВЫЕ функции для работы с подшипниками
+  const handleAddBearingItem = (templateItem: RepairItem) => {
+    setBearingTemplateItem(templateItem);
+    setShowBearingSelector(true);
+  };
+
+  const handleBearingSelected = (bearing: Bearing, quantity: number) => {
+    if (!bearingTemplateItem || !onAddBearingItem) return;
+    
+    onAddBearingItem(bearingTemplateItem, bearing, quantity);
+    setShowBearingSelector(false);
+    setBearingTemplateItem(null);
+  };
+
+  const handleCancelBearingSelection = () => {
+    setShowBearingSelector(false);
+    setBearingTemplateItem(null);
+  };
+
   // Функция для получения доходов и расходов из группы
   const getIncomeExpenseFromGroup = (groupedItem: GroupedRepairItem, originalItems: RepairItem[]) => {
     // Находим все исходные элементы группы
@@ -350,6 +376,16 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
            lowerSalaryGoods.includes('мотор') || 
            lowerSalaryGoods.includes('электродвигатель') ||
            lowerSalaryGoods.includes('движок');
+  };
+
+  // НОВАЯ функция для проверки, нужно ли показывать кнопку подшипника
+  const shouldShowBearingButton = (workType: string): boolean => {
+    const lowerWorkType = workType.toLowerCase();
+    // Проверяем на различные варианты названий для замены расходников/подшипников
+    return lowerWorkType.includes('замен') || 
+           lowerWorkType.includes('расходник') || 
+           lowerWorkType.includes('подшипник') ||
+           lowerWorkType.includes('комплектующ');
   };
 
   const canReceiveDrop = draggedItem !== null && draggedFromPositionId !== null;
@@ -572,6 +608,30 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                       }}
                                       className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
                                       title="Добавить двигатель из справочника"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  {/* НОВАЯ кнопка добавления карточки подшипника (для замены расходников) */}
+                                  {shouldShowBearingButton(workTypeGroup.workType) && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log('🔧 Нажата кнопка подшипника для группы:', workTypeGroup.workType);
+                                        // Берем первый элемент группы как шаблон
+                                        const templateItem = items.find(item => 
+                                          workTypeGroup.items[0].groupedIds.includes(item.id)
+                                        );
+                                        if (templateItem) {
+                                          console.log('🔧 Найден шаблон:', templateItem.id);
+                                          handleAddBearingItem(templateItem);
+                                        } else {
+                                          console.warn('🔧 Шаблон не найден');
+                                        }
+                                      }}
+                                      className="p-1 text-orange-600 hover:bg-orange-100 rounded transition-colors"
+                                      title="Добавить подшипник из справочника"
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
@@ -897,6 +957,16 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
           onCancel={handleCancelMotorSelection}
           templateWorkType={motorTemplateItem.workType}
           templateSalaryGoods={motorTemplateItem.salaryGoods}
+        />
+      )}
+
+      {/* НОВОЕ модальное окно выбора подшипника */}
+      {showBearingSelector && bearingTemplateItem && (
+        <BearingSelector
+          onSelect={handleBearingSelected}
+          onCancel={handleCancelBearingSelection}
+          templateWorkType={bearingTemplateItem.workType}
+          templateSalaryGoods={bearingTemplateItem.salaryGoods}
         />
       )}
     </div>

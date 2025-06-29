@@ -74,7 +74,7 @@ export interface Wire {
   updated_at: string;
 }
 
-// Новый интерфейс для двигателей
+// Интерфейс для двигателей
 export interface Motor {
   id: string;
   name: string;
@@ -86,6 +86,23 @@ export interface Motor {
   price_per_unit: number;
   description: string;
   manufacturer: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// НОВЫЙ интерфейс для подшипников
+export interface Bearing {
+  id: string;
+  designation: string;
+  inner_diameter: number;
+  outer_diameter: number;
+  width: number;
+  bearing_type: string;
+  seal_type: string;
+  manufacturer: string;
+  price_per_unit: number;
+  description: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
