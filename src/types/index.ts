@@ -91,7 +91,7 @@ export interface Motor {
   updated_at: string;
 }
 
-// НОВЫЙ интерфейс для подшипников
+// Интерфейс для подшипников
 export interface Bearing {
   id: string;
   designation: string;
@@ -106,4 +106,31 @@ export interface Bearing {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// НОВЫЕ интерфейсы для сохраненных позиций
+export interface SavedPosition {
+  id: string;
+  position_number: number;
+  service: string;
+  total_price: number;
+  total_income: number;
+  total_expense: number;
+  items_count: number;
+  export_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedPositionItem {
+  id: string;
+  position_id: string;
+  item_data: RepairItem;
+  position_name: string;
+  revenue: number;
+  quantity: number;
+  income_expense_type: 'Доходы' | 'Расходы';
+  work_type: string;
+  salary_goods: string;
+  created_at: string;
 }

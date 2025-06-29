@@ -3,6 +3,7 @@ import { RepairItem, Position, GroupedRepairItem, Employee, Wire, Motor, Bearing
 import { UnallocatedItemsPanel } from './components/UnallocatedItemsPanel';
 import PositionCard from './components/PositionCard';
 import { ImportButton } from './components/ImportButton';
+import { ExportToSupabaseButton } from './components/ExportToSupabaseButton';
 import { SearchBar } from './components/SearchBar';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useSearch } from './hooks/useSearch';
@@ -770,6 +771,11 @@ function App() {
                 <Plus className="w-4 h-4" />
                 <span>Добавить позицию</span>
               </button>
+              
+              <ExportToSupabaseButton 
+                positions={positions}
+                disabled={isDragging}
+              />
               
               <button
                 onClick={handleExport}
