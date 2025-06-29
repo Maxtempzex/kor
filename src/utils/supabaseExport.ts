@@ -24,6 +24,8 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
       export_date: new Date().toISOString()
     }));
 
+    console.log('📋 Данные позиций для сохранения:', positionsToSave);
+
     // Сохраняем позиции
     const { data: savedPositions, error: positionsError } = await supabase
       .from('saved_positions')
@@ -41,7 +43,7 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
 
     console.log('✅ Позиции сохранены:', savedPositions.length);
 
-    // Подготавливаем данные для сохранения элементов позиций
+    // ИСПРАВЛЕНИЕ: Подготавливаем данные для сохранения элементов позиций с ПОЛНЫМИ данными
     const itemsToSave: Omit<SavedPositionItem, 'id' | 'created_at'>[] = [];
 
     positions.forEach((position, index) => {
@@ -49,9 +51,57 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
       if (!savedPosition) return;
 
       position.items.forEach(item => {
+        // ВАЖНО: Сохраняем ВСЕ данные элемента в поле item_data
+        const fullItemData = {
+          // Основные поля
+          id: item.id,
+          uniqueKey: item.uniqueKey,
+          positionName: item.positionName,
+          
+          // ИСПРАВЛЕНИЕ: Добавляем ВСЕ поля даты и времени
+          year: item.year,
+          month: item.month,
+          quarter: item.quarter,
+          date: item.date,
+          
+          // ИСПРАВЛЕНИЕ: Добавляем ВСЕ поля аналитики
+          analytics1: item.analytics1,
+          analytics2: item.analytics2,
+          analytics3: item.analytics3,
+          analytics4: item.analytics4,
+          analytics5: item.analytics5,
+          analytics6: item.analytics6,
+          analytics7: item.analytics7,
+          analytics8: item.analytics8,
+          
+          // Счета
+          debitAccount: item.debitAccount,
+          creditAccount: item.creditAccount,
+          
+          // Финансовые данные
+          revenue: item.revenue,
+          quantity: item.quantity,
+          sumWithoutVAT: item.sumWithoutVAT,
+          vatAmount: item.vatAmount,
+          
+          // Классификация
+          workType: item.workType,
+          incomeExpenseType: item.incomeExpenseType,
+          salaryGoods: item.salaryGoods
+        };
+
+        console.log(`📦 Подготовка элемента ${item.id}:`, {
+          hasYear: !!item.year,
+          hasMonth: !!item.month,
+          hasDate: !!item.date,
+          hasAnalytics1: !!item.analytics1,
+          hasAnalytics8: !!item.analytics8,
+          fullData: fullItemData
+        });
+
         itemsToSave.push({
           position_id: savedPosition.id,
-          item_data: item,
+          item_data: fullItemData, // Сохраняем ПОЛНЫЕ данные
           position_name: item.positionName,
           revenue: item.revenue,
           quantity: item.quantity,
@@ -63,6 +113,7 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
     });
 
     console.log('📦 Подготовлено элементов для сохранения:', itemsToSave.length);
+    console.log('🔍 Пример данных первого элемента:', itemsToSave[0]);
 
     // Сохраняем элементы позиций батчами (по 100 элементов)
     const batchSize = 100;
@@ -71,17 +122,29 @@ export const exportPositionsToSupabase = async (positions: Position[]): Promise<
     for (let i = 0; i < itemsToSave.length; i += batchSize) {
       const batch = itemsToSave.slice(i, i + batchSize);
       
-      const { error: itemsError } = await supabase
+      console.log(`💾 Сохраняем батч ${Math.floor(i/batchSize) + 1}:`, {
+        batchSize: batch.length,
+        startIndex: i,
+        endIndex: i + batch.length - 1
+      });
+
+      const { data: insertedItems, error: itemsError } = await supabase
         .from('saved_position_items')
-        .insert(batch);
+        .insert(batch)
+        .select();
 
       if (itemsError) {
         console.error('❌ Ошибка сохранения элементов (батч):', itemsError);
+        console.error('❌ Проблемный батч:', batch);
         throw itemsError;
       }
 
       savedItemsCount += batch.length;
       console.log(`✅ Сохранен батч: ${batch.length} элементов (всего: ${savedItemsCount}/${itemsToSave.length})`);
+      
+      if (insertedItems && insertedItems.length > 0) {
+        console.log('✅ Пример сохраненного элемента:', insertedItems[0]);
+      }
     }
 
     const message = `Успешно сохранено ${savedPositions.length} позиций с ${savedItemsCount} элементами`;
