@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RepairItem, Position, GroupedRepairItem, Employee, Wire } from './types';
+import { RepairItem, Position, GroupedRepairItem, Employee, Wire, Motor } from './types';
 import { UnallocatedItemsPanel } from './components/UnallocatedItemsPanel';
 import PositionCard from './components/PositionCard';
 import { ImportButton } from './components/ImportButton';
@@ -469,6 +469,48 @@ function App() {
     setUnallocatedItems(prevItems => [...prevItems, newItem]);
   };
 
+  // НОВАЯ функция для добавления карточки двигателя из справочника
+  const handleAddMotorItem = (templateItem: RepairItem, motor: Motor, quantity: number) => {
+    // Генерируем новый ID
+    const newId = `motor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Рассчитываем сумму
+    const totalAmount = motor.price_per_unit * quantity;
+    const sumWithoutVAT = totalAmount * 0.8; // 80% без НДС
+    const vatAmount = totalAmount * 0.2; // 20% НДС
+    
+    // Создаем новую карточку двигателя
+    const newItem: RepairItem = {
+      ...templateItem, // Копируем все свойства шаблона
+      id: newId,
+      uniqueKey: `${newId}-${motor.name.toLowerCase().replace(/\s+/g, '-')}-${motor.power_kw}kw-${motor.rpm}rpm-${quantity}pcs`,
+      positionName: `Ремонт электродвигателя ${motor.name} ${motor.power_kw}кВт*${motor.rpm} об/мин (${quantity} шт)_ID_${newId}`,
+      analytics8: `Ремонт электродвигателя ${motor.name} ${motor.power_kw}кВт*${motor.rpm} об/мин (${quantity} шт)`,
+      // Устанавливаем финансовые данные
+      revenue: totalAmount, // Положительная сумма для доходов от ремонта
+      sumWithoutVAT: sumWithoutVAT,
+      vatAmount: vatAmount,
+      quantity: quantity,
+      incomeExpenseType: 'Доходы' // Ремонт двигателей - это доходы
+    };
+
+    console.log('⚙️ Создание карточки двигателя:', {
+      templateId: templateItem.id,
+      newId: newItem.id,
+      motorName: motor.name,
+      powerKw: motor.power_kw,
+      rpm: motor.rpm,
+      quantity,
+      pricePerUnit: motor.price_per_unit,
+      totalAmount,
+      workType: newItem.workType,
+      salaryGoods: newItem.salaryGoods
+    });
+
+    // Добавляем новую карточку в неразмещенные
+    setUnallocatedItems(prevItems => [...prevItems, newItem]);
+  };
+
   // Обработка изменения количества в позиции
   const handleQuantityChange = (positionId: string, groupedItem: GroupedRepairItem, newQuantity: number) => {
     const currentQuantity = groupedItem.groupedIds.length;
@@ -738,6 +780,7 @@ function App() {
           onAddNewItem={handleAddNewItem}
           onAddEmployeeItem={handleAddEmployeeItem}
           onAddWireItem={handleAddWireItem}
+          onAddMotorItem={handleAddMotorItem}
         />
 
         {/* Right Content Area - Independent scroll */}

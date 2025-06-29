@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RepairItem, GroupedRepairItem, Employee, Wire } from '../types';
+import { RepairItem, GroupedRepairItem, Employee, Wire, Motor } from '../types';
 import { GroupedRepairItemCard } from './GroupedRepairItemCard';
 import { EmployeeSelector } from './EmployeeSelector';
 import { WireSelector } from './WireSelector';
+import { MotorSelector } from './MotorSelector';
 import { groupByBasePositionName } from '../utils/groupingUtils';
 import { Package2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Minimize2, Maximize2, TrendingUp, TrendingDown, RussianRuble as Ruble, Plus } from 'lucide-react';
 
@@ -20,6 +21,7 @@ interface UnallocatedItemsPanelProps {
   onAddNewItem?: (templateItem: RepairItem, newName: string) => void;
   onAddEmployeeItem?: (templateItem: RepairItem, employee: Employee, hours: number) => void;
   onAddWireItem?: (templateItem: RepairItem, wire: Wire, length: number) => void;
+  onAddMotorItem?: (templateItem: RepairItem, motor: Motor, quantity: number) => void;
 }
 
 interface SalaryGoodsGroup {
@@ -47,7 +49,8 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   onCreatePositionFromGroup,
   onAddNewItem,
   onAddEmployeeItem,
-  onAddWireItem
+  onAddWireItem,
+  onAddMotorItem
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -68,6 +71,10 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
   // Состояние для выбора провода
   const [showWireSelector, setShowWireSelector] = useState(false);
   const [wireTemplateItem, setWireTemplateItem] = useState<RepairItem | null>(null);
+
+  // НОВОЕ состояние для выбора двигателя
+  const [showMotorSelector, setShowMotorSelector] = useState(false);
+  const [motorTemplateItem, setMotorTemplateItem] = useState<RepairItem | null>(null);
 
   // Эффект для автоматического сворачивания всех групп при импорте данных
   useEffect(() => {
@@ -279,6 +286,25 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
     setWireTemplateItem(null);
   };
 
+  // НОВЫЕ функции для работы с двигателями
+  const handleAddMotorItem = (templateItem: RepairItem) => {
+    setMotorTemplateItem(templateItem);
+    setShowMotorSelector(true);
+  };
+
+  const handleMotorSelected = (motor: Motor, quantity: number) => {
+    if (!motorTemplateItem || !onAddMotorItem) return;
+    
+    onAddMotorItem(motorTemplateItem, motor, quantity);
+    setShowMotorSelector(false);
+    setMotorTemplateItem(null);
+  };
+
+  const handleCancelMotorSelection = () => {
+    setShowMotorSelector(false);
+    setMotorTemplateItem(null);
+  };
+
   // Функция для получения доходов и расходов из группы
   const getIncomeExpenseFromGroup = (groupedItem: GroupedRepairItem, originalItems: RepairItem[]) => {
     // Находим все исходные элементы группы
@@ -314,6 +340,16 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
            lowerSalaryGoods.includes('провод') || 
            lowerSalaryGoods.includes('материал') ||
            lowerSalaryGoods.includes('комплектующ');
+  };
+
+  // НОВАЯ функция для проверки, нужно ли показывать кнопку двигателя
+  const shouldShowMotorButton = (salaryGoods: string): boolean => {
+    const lowerSalaryGoods = salaryGoods.toLowerCase();
+    // Проверяем на различные варианты названий для двигателей
+    return lowerSalaryGoods.includes('двигатель') || 
+           lowerSalaryGoods.includes('мотор') || 
+           lowerSalaryGoods.includes('электродвигатель') ||
+           lowerSalaryGoods.includes('движок');
   };
 
   const canReceiveDrop = draggedItem !== null && draggedFromPositionId !== null;
@@ -512,6 +548,30 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
                                       }}
                                       className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
                                       title="Добавить провод из справочника"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  {/* НОВАЯ кнопка добавления карточки двигателя */}
+                                  {shouldShowMotorButton(salaryGoodsGroup.salaryGoods) && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log('⚙️ Нажата кнопка двигателя для группы:', salaryGoodsGroup.salaryGoods);
+                                        // Берем первый элемент группы как шаблон
+                                        const templateItem = items.find(item => 
+                                          workTypeGroup.items[0].groupedIds.includes(item.id)
+                                        );
+                                        if (templateItem) {
+                                          console.log('⚙️ Найден шаблон:', templateItem.id);
+                                          handleAddMotorItem(templateItem);
+                                        } else {
+                                          console.warn('⚙️ Шаблон не найден');
+                                        }
+                                      }}
+                                      className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                                      title="Добавить двигатель из справочника"
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
@@ -827,6 +887,16 @@ export const UnallocatedItemsPanel: React.FC<UnallocatedItemsPanelProps> = ({
           onCancel={handleCancelWireSelection}
           templateWorkType={wireTemplateItem.workType}
           templateSalaryGoods={wireTemplateItem.salaryGoods}
+        />
+      )}
+
+      {/* НОВОЕ модальное окно выбора двигателя */}
+      {showMotorSelector && motorTemplateItem && (
+        <MotorSelector
+          onSelect={handleMotorSelected}
+          onCancel={handleCancelMotorSelection}
+          templateWorkType={motorTemplateItem.workType}
+          templateSalaryGoods={motorTemplateItem.salaryGoods}
         />
       )}
     </div>

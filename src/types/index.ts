@@ -60,7 +60,7 @@ export interface Employee {
   updated_at: string;
 }
 
-// Новый интерфейс для проводов
+// Интерфейс для проводов
 export interface Wire {
   id: string;
   brand: string;
@@ -69,6 +69,23 @@ export interface Wire {
   voltage_rating: number;
   price_per_meter: number;
   description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Новый интерфейс для двигателей
+export interface Motor {
+  id: string;
+  name: string;
+  power_kw: number;
+  rpm: number;
+  voltage: number;
+  current: number;
+  efficiency: number;
+  price_per_unit: number;
+  description: string;
+  manufacturer: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
