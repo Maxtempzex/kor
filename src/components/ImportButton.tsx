@@ -89,7 +89,7 @@ export const ImportButton: React.FC<ImportButtonProps> = ({ onImport, disabled =
           flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
           ${disabled || isLoading
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            : 'bg-orange-600 text-white hover:bg-orange-700 hover:shadow-md active:transform active:scale-95'
+            : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-md active:transform active:scale-95'
           }
         `}
       >
