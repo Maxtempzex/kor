@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Employee } from '../types';
 import { useEmployees } from '../hooks/useEmployees';
-import { User, Plus, Loader2, AlertCircle, RussianRuble as Ruble } from 'lucide-react';
+import { User, Plus, Loader2, AlertCircle, RussianRuble as Ruble, Search, X } from 'lucide-react';
 
 interface EmployeeSelectorProps {
   onSelect: (employee: Employee, hours: number) => void;
@@ -24,6 +24,23 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({
   const [newEmployeeRate, setNewEmployeeRate] = useState<number>(300);
   const [newEmployeeDescription, setNewEmployeeDescription] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  
+  // НОВОЕ состояние для поиска
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // НОВАЯ функция фильтрации сотрудников
+  const filteredEmployees = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return employees;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return employees.filter(employee =>
+      employee.name.toLowerCase().includes(query) ||
+      employee.description.toLowerCase().includes(query) ||
+      employee.hourly_rate.toString().includes(query)
+    );
+  }, [employees, searchQuery]);
 
   const handleSelectEmployee = () => {
     if (selectedEmployee && hours > 0) {
@@ -59,6 +76,11 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({
   const calculateTotal = () => {
     if (!selectedEmployee || hours <= 0) return 0;
     return selectedEmployee.hourly_rate * hours;
+  };
+
+  // НОВАЯ функция для очистки поиска
+  const handleClearSearch = () => {
+    setSearchQuery('');
   };
 
   if (loading) {
@@ -112,46 +134,79 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({
 
         {!showAddForm ? (
           <>
+            {/* НОВАЯ строка поиска */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск по названию, описанию или ставке..."
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Найдено: {filteredEmployees.length} из {employees.length}
+                </p>
+              )}
+            </div>
+
             {/* Список сотрудников */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Выберите сотрудника:
               </label>
               <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                {employees.map((employee) => (
-                  <div
-                    key={employee.id}
-                    onClick={() => setSelectedEmployee(employee)}
-                    className={`
-                      p-3 rounded-lg cursor-pointer transition-colors border-2
-                      ${selectedEmployee?.id === employee.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <User className="w-5 h-5 text-gray-600" />
-                        <div>
-                          <p className="font-medium text-gray-900">{employee.name}</p>
-                          {employee.description && (
-                            <p className="text-sm text-gray-600">{employee.description}</p>
-                          )}
+                {filteredEmployees.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    {searchQuery ? 'Ничего не найдено' : 'Нет доступных сотрудников'}
+                  </div>
+                ) : (
+                  filteredEmployees.map((employee) => (
+                    <div
+                      key={employee.id}
+                      onClick={() => setSelectedEmployee(employee)}
+                      className={`
+                        p-3 rounded-lg cursor-pointer transition-colors border-2
+                        ${selectedEmployee?.id === employee.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <User className="w-5 h-5 text-gray-600" />
+                          <div>
+                            <p className="font-medium text-gray-900">{employee.name}</p>
+                            {employee.description && (
+                              <p className="text-sm text-gray-600">{employee.description}</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center space-x-1">
-                          <Ruble className="w-4 h-4 text-green-600" />
-                          <span className="font-bold text-green-600">
-                            {employee.hourly_rate.toLocaleString('ru-RU')}
-                          </span>
+                        <div className="text-right">
+                          <div className="flex items-center space-x-1">
+                            <Ruble className="w-4 h-4 text-green-600" />
+                            <span className="font-bold text-green-600">
+                              {employee.hourly_rate.toLocaleString('ru-RU')}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500">за час</p>
                         </div>
-                        <p className="text-xs text-gray-500">за час</p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

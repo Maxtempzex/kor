@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Bearing } from '../types';
 import { useBearings } from '../hooks/useBearings';
-import { Circle, Plus, Loader2, AlertCircle, RussianRuble as Ruble, Ruler } from 'lucide-react';
+import { Circle, Plus, Loader2, AlertCircle, RussianRuble as Ruble, Ruler, Search, X } from 'lucide-react';
 
 interface BearingSelectorProps {
   onSelect: (bearing: Bearing, quantity: number) => void;
@@ -32,6 +32,29 @@ export const BearingSelector: React.FC<BearingSelectorProps> = ({
     description: ''
   });
   const [isAdding, setIsAdding] = useState(false);
+  
+  // НОВОЕ состояние для поиска
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // НОВАЯ функция фильтрации подшипников
+  const filteredBearings = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return bearings;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return bearings.filter(bearing =>
+      bearing.designation.toLowerCase().includes(query) ||
+      bearing.inner_diameter.toString().includes(query) ||
+      bearing.outer_diameter.toString().includes(query) ||
+      bearing.width.toString().includes(query) ||
+      bearing.bearing_type.toLowerCase().includes(query) ||
+      bearing.seal_type.toLowerCase().includes(query) ||
+      bearing.manufacturer.toLowerCase().includes(query) ||
+      bearing.price_per_unit.toString().includes(query) ||
+      bearing.description.toLowerCase().includes(query)
+    );
+  }, [bearings, searchQuery]);
 
   const handleSelectBearing = () => {
     if (selectedBearing && quantity > 0) {
@@ -78,8 +101,13 @@ export const BearingSelector: React.FC<BearingSelectorProps> = ({
     return selectedBearing.price_per_unit * quantity;
   };
 
-  // Группируем подшипники по внутреннему диаметру
-  const bearingsByDiameter = bearings.reduce((acc, bearing) => {
+  // НОВАЯ функция для очистки поиска
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
+  // Группируем подшипники по внутреннему диаметру (только отфильтрованные)
+  const bearingsByDiameter = filteredBearings.reduce((acc, bearing) => {
     const diameterGroup = `Ø${bearing.inner_diameter} мм`;
     if (!acc[diameterGroup]) {
       acc[diameterGroup] = [];
@@ -139,68 +167,101 @@ export const BearingSelector: React.FC<BearingSelectorProps> = ({
 
         {!showAddForm ? (
           <>
+            {/* НОВАЯ строка поиска */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск по обозначению, размерам, типу, производителю..."
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Найдено: {filteredBearings.length} из {bearings.length}
+                </p>
+              )}
+            </div>
+
             {/* Список подшипников по диаметрам */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Выберите подшипник:
               </label>
               <div className="space-y-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                {Object.entries(bearingsByDiameter).map(([diameterGroup, diameterBearings]) => (
-                  <div key={diameterGroup} className="space-y-2">
-                    <h4 className="font-medium text-gray-900 text-sm bg-gray-100 px-2 py-1 rounded">
-                      {diameterGroup}
-                    </h4>
-                    <div className="space-y-1 pl-3">
-                      {diameterBearings.map((bearing) => (
-                        <div
-                          key={bearing.id}
-                          onClick={() => setSelectedBearing(bearing)}
-                          className={`
-                            p-3 rounded-lg cursor-pointer transition-colors border-2
-                            ${selectedBearing?.id === bearing.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <Circle className="w-5 h-5 text-gray-600" />
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {bearing.designation}
-                                </p>
-                                <div className="flex items-center space-x-3 text-xs text-gray-600 mt-1">
-                                  <div className="flex items-center space-x-1">
-                                    <Ruler className="w-3 h-3" />
-                                    <span>{bearing.inner_diameter}×{bearing.outer_diameter}×{bearing.width}</span>
+                {Object.keys(bearingsByDiameter).length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    {searchQuery ? 'Ничего не найдено' : 'Нет доступных подшипников'}
+                  </div>
+                ) : (
+                  Object.entries(bearingsByDiameter).map(([diameterGroup, diameterBearings]) => (
+                    <div key={diameterGroup} className="space-y-2">
+                      <h4 className="font-medium text-gray-900 text-sm bg-gray-100 px-2 py-1 rounded">
+                        {diameterGroup}
+                      </h4>
+                      <div className="space-y-1 pl-3">
+                        {diameterBearings.map((bearing) => (
+                          <div
+                            key={bearing.id}
+                            onClick={() => setSelectedBearing(bearing)}
+                            className={`
+                              p-3 rounded-lg cursor-pointer transition-colors border-2
+                              ${selectedBearing?.id === bearing.id
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }
+                            `}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Circle className="w-5 h-5 text-gray-600" />
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {bearing.designation}
+                                  </p>
+                                  <div className="flex items-center space-x-3 text-xs text-gray-600 mt-1">
+                                    <div className="flex items-center space-x-1">
+                                      <Ruler className="w-3 h-3" />
+                                      <span>{bearing.inner_diameter}×{bearing.outer_diameter}×{bearing.width}</span>
+                                    </div>
+                                    <span>{bearing.bearing_type}</span>
+                                    <span>{bearing.seal_type}</span>
                                   </div>
-                                  <span>{bearing.bearing_type}</span>
-                                  <span>{bearing.seal_type}</span>
+                                  {bearing.manufacturer && (
+                                    <p className="text-xs text-gray-500 mt-1">{bearing.manufacturer}</p>
+                                  )}
+                                  {bearing.description && (
+                                    <p className="text-xs text-gray-500 mt-1">{bearing.description}</p>
+                                  )}
                                 </div>
-                                {bearing.manufacturer && (
-                                  <p className="text-xs text-gray-500 mt-1">{bearing.manufacturer}</p>
-                                )}
-                                {bearing.description && (
-                                  <p className="text-xs text-gray-500 mt-1">{bearing.description}</p>
-                                )}
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-center space-x-1">
-                                <Ruble className="w-4 h-4 text-green-600" />
-                                <span className="font-bold text-green-600">
-                                  {bearing.price_per_unit.toLocaleString('ru-RU')}
-                                </span>
+                              <div className="text-right">
+                                <div className="flex items-center space-x-1">
+                                  <Ruble className="w-4 h-4 text-green-600" />
+                                  <span className="font-bold text-green-600">
+                                    {bearing.price_per_unit.toLocaleString('ru-RU')}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500">за шт</p>
                               </div>
-                              <p className="text-xs text-gray-500">за шт</p>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

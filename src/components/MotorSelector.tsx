@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Motor } from '../types';
 import { useMotors } from '../hooks/useMotors';
-import { Cog, Plus, Loader2, AlertCircle, RussianRuble as Ruble, Zap, Gauge } from 'lucide-react';
+import { Cog, Plus, Loader2, AlertCircle, RussianRuble as Ruble, Zap, Gauge, Search, X } from 'lucide-react';
 
 interface MotorSelectorProps {
   onSelect: (motor: Motor, quantity: number) => void;
@@ -32,6 +32,29 @@ export const MotorSelector: React.FC<MotorSelectorProps> = ({
     manufacturer: 'Электром'
   });
   const [isAdding, setIsAdding] = useState(false);
+  
+  // НОВОЕ состояние для поиска
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // НОВАЯ функция фильтрации двигателей
+  const filteredMotors = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return motors;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return motors.filter(motor =>
+      motor.name.toLowerCase().includes(query) ||
+      motor.power_kw.toString().includes(query) ||
+      motor.rpm.toString().includes(query) ||
+      motor.voltage.toString().includes(query) ||
+      motor.current.toString().includes(query) ||
+      motor.efficiency.toString().includes(query) ||
+      motor.price_per_unit.toString().includes(query) ||
+      motor.manufacturer.toLowerCase().includes(query) ||
+      motor.description.toLowerCase().includes(query)
+    );
+  }, [motors, searchQuery]);
 
   const handleSelectMotor = () => {
     if (selectedMotor && quantity > 0) {
@@ -78,8 +101,13 @@ export const MotorSelector: React.FC<MotorSelectorProps> = ({
     return selectedMotor.price_per_unit * quantity;
   };
 
-  // Группируем двигатели по мощности
-  const motorsByPower = motors.reduce((acc, motor) => {
+  // НОВАЯ функция для очистки поиска
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
+  // Группируем двигатели по мощности (только отфильтрованные)
+  const motorsByPower = filteredMotors.reduce((acc, motor) => {
     const powerGroup = `${motor.power_kw} кВт`;
     if (!acc[powerGroup]) {
       acc[powerGroup] = [];
@@ -139,76 +167,109 @@ export const MotorSelector: React.FC<MotorSelectorProps> = ({
 
         {!showAddForm ? (
           <>
+            {/* НОВАЯ строка поиска */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск по названию, мощности, оборотам, производителю..."
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Найдено: {filteredMotors.length} из {motors.length}
+                </p>
+              )}
+            </div>
+
             {/* Список двигателей по мощности */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Выберите двигатель:
               </label>
               <div className="space-y-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                {Object.entries(motorsByPower).map(([powerGroup, powerMotors]) => (
-                  <div key={powerGroup} className="space-y-2">
-                    <h4 className="font-medium text-gray-900 text-sm bg-gray-100 px-2 py-1 rounded">
-                      {powerGroup}
-                    </h4>
-                    <div className="space-y-1 pl-3">
-                      {powerMotors.map((motor) => (
-                        <div
-                          key={motor.id}
-                          onClick={() => setSelectedMotor(motor)}
-                          className={`
-                            p-3 rounded-lg cursor-pointer transition-colors border-2
-                            ${selectedMotor?.id === motor.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <Cog className="w-5 h-5 text-gray-600" />
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {motor.name}
-                                </p>
-                                <div className="flex items-center space-x-3 text-xs text-gray-600 mt-1">
-                                  <div className="flex items-center space-x-1">
-                                    <Gauge className="w-3 h-3" />
-                                    <span>{motor.rpm} об/мин</span>
+                {Object.keys(motorsByPower).length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    {searchQuery ? 'Ничего не найдено' : 'Нет доступных двигателей'}
+                  </div>
+                ) : (
+                  Object.entries(motorsByPower).map(([powerGroup, powerMotors]) => (
+                    <div key={powerGroup} className="space-y-2">
+                      <h4 className="font-medium text-gray-900 text-sm bg-gray-100 px-2 py-1 rounded">
+                        {powerGroup}
+                      </h4>
+                      <div className="space-y-1 pl-3">
+                        {powerMotors.map((motor) => (
+                          <div
+                            key={motor.id}
+                            onClick={() => setSelectedMotor(motor)}
+                            className={`
+                              p-3 rounded-lg cursor-pointer transition-colors border-2
+                              ${selectedMotor?.id === motor.id
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }
+                            `}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Cog className="w-5 h-5 text-gray-600" />
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {motor.name}
+                                  </p>
+                                  <div className="flex items-center space-x-3 text-xs text-gray-600 mt-1">
+                                    <div className="flex items-center space-x-1">
+                                      <Gauge className="w-3 h-3" />
+                                      <span>{motor.rpm} об/мин</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <Zap className="w-3 h-3" />
+                                      <span>{motor.voltage} В</span>
+                                    </div>
+                                    {motor.current > 0 && (
+                                      <span>{motor.current} А</span>
+                                    )}
+                                    {motor.efficiency > 0 && (
+                                      <span>КПД {motor.efficiency}%</span>
+                                    )}
                                   </div>
-                                  <div className="flex items-center space-x-1">
-                                    <Zap className="w-3 h-3" />
-                                    <span>{motor.voltage} В</span>
-                                  </div>
-                                  {motor.current > 0 && (
-                                    <span>{motor.current} А</span>
+                                  {motor.manufacturer && (
+                                    <p className="text-xs text-gray-500 mt-1">{motor.manufacturer}</p>
                                   )}
-                                  {motor.efficiency > 0 && (
-                                    <span>КПД {motor.efficiency}%</span>
+                                  {motor.description && (
+                                    <p className="text-xs text-gray-500 mt-1">{motor.description}</p>
                                   )}
                                 </div>
-                                {motor.manufacturer && (
-                                  <p className="text-xs text-gray-500 mt-1">{motor.manufacturer}</p>
-                                )}
-                                {motor.description && (
-                                  <p className="text-xs text-gray-500 mt-1">{motor.description}</p>
-                                )}
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-center space-x-1">
-                                <Ruble className="w-4 h-4 text-green-600" />
-                                <span className="font-bold text-green-600">
-                                  {motor.price_per_unit.toLocaleString('ru-RU')}
-                                </span>
+                              <div className="text-right">
+                                <div className="flex items-center space-x-1">
+                                  <Ruble className="w-4 h-4 text-green-600" />
+                                  <span className="font-bold text-green-600">
+                                    {motor.price_per_unit.toLocaleString('ru-RU')}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500">за шт</p>
                               </div>
-                              <p className="text-xs text-gray-500">за шт</p>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

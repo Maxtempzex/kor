@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Wire } from '../types';
 import { useWires } from '../hooks/useWires';
-import { Cable, Plus, Loader2, AlertCircle, RussianRuble as Ruble, Zap } from 'lucide-react';
+import { Cable, Plus, Loader2, AlertCircle, RussianRuble as Ruble, Zap, Search, X } from 'lucide-react';
 
 interface WireSelectorProps {
   onSelect: (wire: Wire, length: number) => void;
@@ -29,6 +29,26 @@ export const WireSelector: React.FC<WireSelectorProps> = ({
     description: ''
   });
   const [isAdding, setIsAdding] = useState(false);
+  
+  // НОВОЕ состояние для поиска
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // НОВАЯ функция фильтрации проводов
+  const filteredWires = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return wires;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return wires.filter(wire =>
+      wire.brand.toLowerCase().includes(query) ||
+      wire.cross_section.toString().includes(query) ||
+      wire.insulation_type.toLowerCase().includes(query) ||
+      wire.voltage_rating.toString().includes(query) ||
+      wire.price_per_meter.toString().includes(query) ||
+      wire.description.toLowerCase().includes(query)
+    );
+  }, [wires, searchQuery]);
 
   const handleSelectWire = () => {
     if (selectedWire && length > 0) {
@@ -71,8 +91,13 @@ export const WireSelector: React.FC<WireSelectorProps> = ({
     return selectedWire.price_per_meter * length;
   };
 
-  // Группируем провода по маркам
-  const wiresByBrand = wires.reduce((acc, wire) => {
+  // НОВАЯ функция для очистки поиска
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
+  // Группируем провода по маркам (только отфильтрованные)
+  const wiresByBrand = filteredWires.reduce((acc, wire) => {
     if (!acc[wire.brand]) {
       acc[wire.brand] = [];
     }
@@ -131,63 +156,96 @@ export const WireSelector: React.FC<WireSelectorProps> = ({
 
         {!showAddForm ? (
           <>
+            {/* НОВАЯ строка поиска */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск по марке, сечению, изоляции, напряжению..."
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Найдено: {filteredWires.length} из {wires.length}
+                </p>
+              )}
+            </div>
+
             {/* Список проводов по маркам */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Выберите провод:
               </label>
               <div className="space-y-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                {Object.entries(wiresByBrand).map(([brand, brandWires]) => (
-                  <div key={brand} className="space-y-2">
-                    <h4 className="font-medium text-gray-900 text-sm bg-gray-100 px-2 py-1 rounded">
-                      {brand}
-                    </h4>
-                    <div className="space-y-1 pl-3">
-                      {brandWires.map((wire) => (
-                        <div
-                          key={wire.id}
-                          onClick={() => setSelectedWire(wire)}
-                          className={`
-                            p-3 rounded-lg cursor-pointer transition-colors border-2
-                            ${selectedWire?.id === wire.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <Cable className="w-5 h-5 text-gray-600" />
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {wire.cross_section} мм² • {wire.insulation_type}
-                                </p>
-                                {wire.voltage_rating > 0 && (
-                                  <div className="flex items-center space-x-1 text-xs text-gray-600">
-                                    <Zap className="w-3 h-3" />
-                                    <span>{wire.voltage_rating} В</span>
-                                  </div>
-                                )}
-                                {wire.description && (
-                                  <p className="text-xs text-gray-500 mt-1">{wire.description}</p>
-                                )}
+                {Object.keys(wiresByBrand).length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    {searchQuery ? 'Ничего не найдено' : 'Нет доступных проводов'}
+                  </div>
+                ) : (
+                  Object.entries(wiresByBrand).map(([brand, brandWires]) => (
+                    <div key={brand} className="space-y-2">
+                      <h4 className="font-medium text-gray-900 text-sm bg-gray-100 px-2 py-1 rounded">
+                        {brand}
+                      </h4>
+                      <div className="space-y-1 pl-3">
+                        {brandWires.map((wire) => (
+                          <div
+                            key={wire.id}
+                            onClick={() => setSelectedWire(wire)}
+                            className={`
+                              p-3 rounded-lg cursor-pointer transition-colors border-2
+                              ${selectedWire?.id === wire.id
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }
+                            `}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Cable className="w-5 h-5 text-gray-600" />
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {wire.cross_section} мм² • {wire.insulation_type}
+                                  </p>
+                                  {wire.voltage_rating > 0 && (
+                                    <div className="flex items-center space-x-1 text-xs text-gray-600">
+                                      <Zap className="w-3 h-3" />
+                                      <span>{wire.voltage_rating} В</span>
+                                    </div>
+                                  )}
+                                  {wire.description && (
+                                    <p className="text-xs text-gray-500 mt-1">{wire.description}</p>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-center space-x-1">
-                                <Ruble className="w-4 h-4 text-green-600" />
-                                <span className="font-bold text-green-600">
-                                  {wire.price_per_meter.toLocaleString('ru-RU')}
-                                </span>
+                              <div className="text-right">
+                                <div className="flex items-center space-x-1">
+                                  <Ruble className="w-4 h-4 text-green-600" />
+                                  <span className="font-bold text-green-600">
+                                    {wire.price_per_meter.toLocaleString('ru-RU')}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500">за метр</p>
                               </div>
-                              <p className="text-xs text-gray-500">за метр</p>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
