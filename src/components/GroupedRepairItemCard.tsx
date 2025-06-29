@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { GroupedRepairItem } from '../types';
 import { QuantityControl } from './QuantityControl';
-import { Package, RussianRuble as Ruble, Calendar, Hash, Copy, Check, Tag, Users, ArrowRight, TrendingUp, TrendingDown, Edit3, Clock } from 'lucide-react';
+import { Package, RussianRuble as Ruble, Calendar, Hash, Copy, Check, Tag, Users, ArrowRight, TrendingUp, TrendingDown, Edit3, Clock, FileText } from 'lucide-react';
 
 interface GroupedRepairItemCardProps {
   item: GroupedRepairItem;
@@ -222,6 +222,21 @@ export const GroupedRepairItemCard: React.FC<GroupedRepairItemCardProps> = ({
     );
   };
 
+  // НОВАЯ функция для форматирования документа УПД
+  const formatUPDDocument = (analytics1: string) => {
+    if (!analytics1 || analytics1.trim() === '') return null;
+    
+    // Пытаемся извлечь номер документа и дату
+    const match = analytics1.match(/(\w+-\d+)\s+от\s+(\d{2}\.\d{2}\.\d{4})/);
+    if (match) {
+      const [, docNumber, docDate] = match;
+      return { docNumber, docDate, fullText: analytics1 };
+    }
+    
+    // Если не удалось распарсить, возвращаем как есть
+    return { docNumber: null, docDate: null, fullText: analytics1 };
+  };
+
   const isGrouped = item.groupedIds.length > 1;
   const showQuantityControl = fromPositionId && onQuantityChange && maxAvailableQuantity !== undefined;
   const currentQuantity = item.groupedIds.length;
@@ -232,6 +247,9 @@ export const GroupedRepairItemCard: React.FC<GroupedRepairItemCardProps> = ({
   const showHoursEdit = fromPositionId && onEmployeeHoursChange && isEmployeeCard();
   const employeeInfo = getEmployeeInfo();
   const hourlyRate = calculateHourlyRate();
+  
+  // НОВОЕ: Получаем информацию о документе УПД
+  const updDocument = formatUPDDocument(item.analytics1);
 
   return (
     <div
@@ -313,6 +331,33 @@ export const GroupedRepairItemCard: React.FC<GroupedRepairItemCardProps> = ({
             </span>
           </div>
         </div>
+
+        {/* НОВОЕ: Информация о документе УПД */}
+        {updDocument && updDocument.fullText && (
+          <div className="mb-3 p-2 bg-blue-50 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <FileText className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-xs font-medium text-blue-800 mb-1">Документ УПД:</p>
+                {updDocument.docNumber && updDocument.docDate ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <span className="font-medium text-blue-700">№ {updDocument.docNumber}</span>
+                      <span className="text-blue-600">от {updDocument.docDate}</span>
+                    </div>
+                    <p className="text-xs text-blue-600 break-all">
+                      {highlightText(updDocument.fullText, searchQuery)}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-blue-600 break-all">
+                    {highlightText(updDocument.fullText, searchQuery)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Информация о сотруднике (если это карточка сотрудника) */}
         {isEmployeeCard() && employeeInfo && (
