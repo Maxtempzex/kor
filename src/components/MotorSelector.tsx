@@ -16,7 +16,7 @@ export const MotorSelector: React.FC<MotorSelectorProps> = ({
   templateWorkType = '',
   templateSalaryGoods = ''
 }) => {
-  const { motors, loading, error, addMotor } = useMotors();
+  const { motors, loading, error, addMotor, findMotorBySpecs } = useMotors();
   const [selectedMotor, setSelectedMotor] = useState<Motor | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -67,6 +67,23 @@ export const MotorSelector: React.FC<MotorSelectorProps> = ({
 
     try {
       setIsAdding(true);
+      
+      // Check if a motor with the same specifications already exists
+      const existingMotor = await findMotorBySpecs(
+        newMotor.power_kw,
+        newMotor.rpm,
+        newMotor.voltage
+      );
+
+      if (existingMotor) {
+        // Motor with same specs already exists, select it instead
+        setSelectedMotor(existingMotor);
+        setShowAddForm(false);
+        alert(`Двигатель с такими характеристиками уже существует: ${existingMotor.name}. Он был автоматически выбран.`);
+        return;
+      }
+
+      // No duplicate found, proceed with adding new motor
       const motorToAdd = await addMotor({
         ...newMotor,
         name: newMotor.name.trim(),

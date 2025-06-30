@@ -32,6 +32,28 @@ export const useMotors = () => {
     }
   };
 
+  const findMotorBySpecs = async (power_kw: number, rpm: number, voltage: number) => {
+    try {
+      const { data, error: findError } = await supabase
+        .from('motors')
+        .select('*')
+        .eq('power_kw', power_kw)
+        .eq('rpm', rpm)
+        .eq('voltage', voltage)
+        .eq('is_active', true)
+        .single();
+
+      if (findError && findError.code !== 'PGRST116') {
+        throw findError;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error finding motor by specs:', err);
+      throw err;
+    }
+  };
+
   const addMotor = async (motor: Omit<Motor, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error: insertError } = await supabase
@@ -83,6 +105,7 @@ export const useMotors = () => {
     error,
     fetchMotors,
     addMotor,
-    updateMotor
+    updateMotor,
+    findMotorBySpecs
   };
 };
